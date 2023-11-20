@@ -13,6 +13,7 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Process;
+import android.os.SystemClock;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,8 +39,10 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -382,6 +385,27 @@ public class GBxCartCommands {
             this.latestFile = latestFile;
         }
 
+        /**
+         * Checks if the length has been read the specified number of times
+         *
+         * @param newLength   the length to check
+         * @param readLengths the map of lengths and times read for each one
+         * @param times       the number of times to check
+         * @return true if the length has been read the specified number of times
+         */
+        protected boolean hasBeenReadTimes(String newLength, Map<String, Integer> readLengths, int times) {
+            for (Map.Entry<String, Integer> entry : readLengths.entrySet()) {
+                String k = entry.getKey();
+                int v = entry.getValue();
+                if (k.equals(newLength)) {
+                    if (v >= times) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         @Override
         protected Void doInBackground(Void... voids) {
             Process.setThreadPriority(Process.THREAD_PRIORITY_LOWEST);
@@ -425,9 +449,44 @@ public class GBxCartCommands {
                     Cart_write(0x4000, i, port, context);
                     // Read 8 KiB of SRAM
                     for (int j = 0; j < 128; j++) {
-                        byte[] readLength = new byte[64];
-                        CartRead_RAM(j * 64, 64, port, context);
-                        int len = port.read(readLength, TIMEOUT);
+                        byte[] readLength;
+                        int len;
+
+                        // Map to store the read lengths and the times they have been read so that
+                        // we can check that reading it multiple times gives the same result
+                        Map<String, Integer> readLengths = new HashMap<>();
+                        String lengthKey;
+                        int tryCount = 0;
+
+                        // retry reading the length multiple times to make sure it's the same
+                        do {
+                            readLength = new byte[64];
+                            CartRead_RAM(j * 64, 64, port, context);
+                            SystemClock.sleep(1); // seems to help with the read length being wrong
+                            len = port.read(readLength, TIMEOUT);
+
+                            // Calculate key of the read length
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                lengthKey = Base64.getEncoder().encodeToString(readLength);
+                            } else {
+                                lengthKey = "";
+                            }
+
+                            // Add the length to the map if it does not exist or increment the value
+                            if (readLengths.containsKey(lengthKey)) {
+                                // Increment the value
+                                readLengths.put(lengthKey, readLengths.get(lengthKey) + 1);
+                            } else {
+                                // Add the length to the map
+                                readLengths.put(lengthKey, 1);
+                            }
+
+                            // Failsafe: Try max of 10 times to avoid looping forever...
+                            tryCount++;
+                            if (tryCount > 10) {
+                                break;
+                            }
+                        } while (!hasBeenReadTimes(lengthKey, readLengths, 2));
 
                         try {
                             outputStream.write(Arrays.copyOf(readLength, len));
