@@ -1,5 +1,6 @@
 package com.mraulio.gbcameramanager.gbxcart;
 
+import static com.mraulio.gbcameramanager.utils.StaticValues.dateLocale;
 import static com.mraulio.gbcameramanager.ui.usbserial.UsbSerialFragment.btnAddImages;
 import static com.mraulio.gbcameramanager.ui.usbserial.UsbSerialFragment.btnDelSav;
 import static com.mraulio.gbcameramanager.ui.usbserial.UsbSerialFragment.cbDeleted;
@@ -17,12 +18,10 @@ import android.os.SystemClock;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.mraulio.gbcameramanager.R;
 import com.mraulio.gbcameramanager.ui.usbserial.UsbSerialFragment;
 import com.mraulio.gbcameramanager.utils.Utils;
-
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -219,12 +218,14 @@ public class GBxCartCommands {
         private TextView tv;
         private UsbSerialPort port;
         List<File> fullRomFileList;
+        List<byte[]> fullRomFileBytes;
 
-        public ReadPHOTORomAsyncTask(UsbSerialPort port, Context context, TextView tv, List<File> fullRomFileList) {
+        public ReadPHOTORomAsyncTask(UsbSerialPort port, Context context, TextView tv, List<File> fullRomFileList, List<byte[]> fullRomFileBytes) {
             this.port = port;
             this.context = context;
             this.tv = tv;
             this.fullRomFileList = fullRomFileList;
+            this.fullRomFileBytes = fullRomFileBytes;
         }
 
 
@@ -241,13 +242,13 @@ public class GBxCartCommands {
 
             String folderName = null;
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern(dateLocale + "HH-mm-ss");
                 folderName = "PhotoFullRom_" + dtf.format(now);
-                fileName += dtf.format(now) + ".full.gbc";
-            }else{
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault());
+                fileName += dtf.format(now) + "-full.gbc";
+            } else {
+                SimpleDateFormat sdf = new SimpleDateFormat(dateLocale + "_HH-mm-ss", Locale.getDefault());
                 folderName = "PhotoFullRom_" + sdf.format(nowDate);
-                fileName += sdf.format(nowDate) + ".full.gbc";
+                fileName += sdf.format(nowDate) + "-full.gbc";
             }
 
             UsbSerialFragment.photoFolder = new File(Utils.PHOTO_DUMPS_FOLDER, folderName);
@@ -335,6 +336,7 @@ public class GBxCartCommands {
 
                             if (magicIsReal(fileBytes)) {
                                 fullRomFileList.add(outputFile);
+                                fullRomFileBytes.add(fileBytes);
                             } else {
                                 outputFile.delete();
                             }
@@ -408,7 +410,6 @@ public class GBxCartCommands {
 
         @Override
         protected Void doInBackground(Void... voids) {
-            Process.setThreadPriority(Process.THREAD_PRIORITY_LOWEST);
             LocalDateTime now = null;
             Date nowDate = new Date();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -417,12 +418,11 @@ public class GBxCartCommands {
             String fileName = "gbCamera_";
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern(dateLocale + "_HH-mm-ss");
                 fileName += dtf.format(now) + ".sav";
             } else {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault());
+                SimpleDateFormat sdf = new SimpleDateFormat(dateLocale + "_HH-mm-ss", Locale.getDefault());
                 fileName += sdf.format(nowDate) + ".sav";
-
             }
 
             File file = new File(Utils.SAVE_FOLDER, fileName);
@@ -540,7 +540,7 @@ public class GBxCartCommands {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     fileBytes = Files.readAllBytes(latestFile.toPath());
-                }else{
+                } else {
                     FileInputStream fis = new FileInputStream(latestFile);
                     fileBytes = new byte[(int) latestFile.length()];
                     fis.read(fileBytes);
@@ -549,6 +549,7 @@ public class GBxCartCommands {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
             if (!magicIsReal(fileBytes)) {
                 tv.append(context.getString(R.string.no_valid_file));
                 return;
@@ -556,7 +557,7 @@ public class GBxCartCommands {
 
             tv.append(context.getString(R.string.last_sav_name) + latestFile.getName() + ".\n" +
                     context.getString(R.string.size) + latestFile.length() / 1024 + "KB");
-            readSav(latestFile, 0);
+            readSav(latestFile, fileBytes, 0);
             btnAddImages.setVisibility(View.VISIBLE);
             btnDelSav.setVisibility(View.VISIBLE);
             layoutCb.setVisibility(View.VISIBLE);

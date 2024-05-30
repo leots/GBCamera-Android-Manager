@@ -1,6 +1,9 @@
 package com.mraulio.gbcameramanager.ui.settings;
 
-import static com.mraulio.gbcameramanager.MainActivity.exportSquare;
+import static com.mraulio.gbcameramanager.utils.StaticValues.exportSquare;
+import static com.mraulio.gbcameramanager.utils.Utils.backupDatabase;
+import static com.mraulio.gbcameramanager.utils.Utils.restartApplication;
+import static com.mraulio.gbcameramanager.utils.Utils.showDbBackups;
 
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -11,6 +14,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.RadioButton;
@@ -19,9 +23,9 @@ import android.widget.Spinner;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
-import com.mraulio.gbcameramanager.MainActivity;
 import com.mraulio.gbcameramanager.R;
 import com.mraulio.gbcameramanager.ui.gallery.GalleryFragment;
+import com.mraulio.gbcameramanager.utils.StaticValues;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,9 +33,10 @@ import java.util.Locale;
 
 
 public class SettingsFragment extends Fragment {
-    SharedPreferences.Editor editor = MainActivity.sharedPreferences.edit();
+    SharedPreferences.Editor editor = StaticValues.sharedPreferences.edit();
     private boolean userSelect = false;
     private boolean userSelectPage = false;
+    private boolean userSelectLocale = false;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -39,41 +44,60 @@ public class SettingsFragment extends Fragment {
         Spinner spinnerExport = view.findViewById(R.id.spExportSize);
         Spinner spinnerImages = view.findViewById(R.id.spImagesPage);
         Spinner spinnerLanguage = view.findViewById(R.id.spLanguage);
+        Spinner spinnerLocale = view.findViewById(R.id.sp_locale_date);
         RadioButton rbPng = view.findViewById(R.id.rbPng);
         RadioButton rbTxt = view.findViewById(R.id.rbTxt);
         CheckBox cbPrint = view.findViewById(R.id.cbPrint);
         CheckBox cbPaperize = view.findViewById(R.id.cbPaperize);
         CheckBox cbMagicCheck = view.findViewById(R.id.cbMagic);
+        CheckBox cbExportMetadata = view.findViewById(R.id.cb_export_metadata);
         CheckBox cbRotation = view.findViewById(R.id.cbRotation);
+        CheckBox cbAlwaysDefaultFrame = view.findViewById(R.id.cb_always_default_frame);
         CheckBox cbSquare = view.findViewById(R.id.cbSquare);
+        Button btnExportDB = view.findViewById(R.id.btnExportDB);
+        Button btnRestoreDB = view.findViewById(R.id.btnRestoreDB);
 
-        MainActivity.current_fragment = MainActivity.CURRENT_FRAGMENT.SETTINGS;
+        StaticValues.currentFragment = StaticValues.CURRENT_FRAGMENT.SETTINGS;
 
-        cbPrint.setChecked(MainActivity.printingEnabled);
+        cbExportMetadata.setChecked(StaticValues.exportMetadata);
+        cbExportMetadata.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    editor.putBoolean("export_metadata", true);
+                    StaticValues.exportMetadata = true;
+                } else {
+                    editor.putBoolean("export_metadata", false);
+                    StaticValues.exportMetadata = false;
+                }
+                editor.apply();
+            }
+        });
+        cbPrint.setChecked(StaticValues.printingEnabled);
         cbPrint.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
                     editor.putBoolean("print_enabled", true);
-                    MainActivity.printingEnabled = true;
+                    StaticValues.printingEnabled = true;
                 } else {
                     editor.putBoolean("print_enabled", false);
-                    MainActivity.printingEnabled = false;
+                    StaticValues.printingEnabled = false;
                 }
                 editor.apply();
             }
         });
 
-        cbPaperize.setChecked(MainActivity.showPaperizeButton);
+        cbPaperize.setChecked(StaticValues.showPaperizeButton);
         cbPaperize.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
                     editor.putBoolean("show_paperize_button", true);
-                    MainActivity.showPaperizeButton = true;
+                    StaticValues.showPaperizeButton = true;
                 } else {
                     editor.putBoolean("show_paperize_button", false);
-                    MainActivity.showPaperizeButton = false;
+                    StaticValues.showPaperizeButton = false;
                 }
                 editor.apply();
             }
@@ -93,7 +117,7 @@ public class SettingsFragment extends Fragment {
             }
         });
 
-        if (MainActivity.exportPng) {
+        if (StaticValues.exportPng) {
             rbPng.setChecked(true);
             spinnerExport.setEnabled(true);
         } else {
@@ -101,15 +125,15 @@ public class SettingsFragment extends Fragment {
             spinnerExport.setEnabled(false);
         }
 
-        cbMagicCheck.setChecked(MainActivity.magicCheck);
+        cbMagicCheck.setChecked(StaticValues.magicCheck);
         cbMagicCheck.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
-                    MainActivity.magicCheck = true;
+                    StaticValues.magicCheck = true;
                     editor.putBoolean("magic_check", true);
                 } else {
-                    MainActivity.magicCheck = false;
+                    StaticValues.magicCheck = false;
                     editor.putBoolean("magic_check", false);
                 }
                 editor.apply();
@@ -119,7 +143,7 @@ public class SettingsFragment extends Fragment {
         rbPng.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                MainActivity.exportPng = true;
+                StaticValues.exportPng = true;
                 editor.putBoolean("export_as_png", true);
                 editor.apply();
                 spinnerExport.setEnabled(true);
@@ -128,7 +152,7 @@ public class SettingsFragment extends Fragment {
         rbTxt.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                MainActivity.exportPng = false;
+                StaticValues.exportPng = false;
                 editor.putBoolean("export_as_png", false);
                 editor.apply();
                 spinnerExport.setEnabled(false);
@@ -156,16 +180,17 @@ public class SettingsFragment extends Fragment {
                 android.R.layout.simple_spinner_item, sizes);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerExport.setAdapter(adapter);
-        spinnerExport.setSelection(sizesInteger.indexOf(MainActivity.exportSize));
+        spinnerExport.setSelection(sizesInteger.indexOf(StaticValues.exportSize));
 
         spinnerExport.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 // I set the export size on the Main activity int as the selected one
-                MainActivity.exportSize = sizesInteger.get(position);
+                StaticValues.exportSize = sizesInteger.get(position);
                 editor.putInt("export_size", sizesInteger.get(position));
                 editor.apply();
             }
+
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
             }
@@ -191,13 +216,13 @@ public class SettingsFragment extends Fragment {
                 android.R.layout.simple_spinner_item, sizesImages);
         adapterImages.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerImages.setAdapter(adapterImages);
-        spinnerImages.setSelection(sizesIntegerImages.indexOf(MainActivity.imagesPage));
+        spinnerImages.setSelection(sizesIntegerImages.indexOf(StaticValues.imagesPage));
         spinnerImages.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (userSelectPage) {
                     // I set the export size on the Main activity int as the selected one
-                    MainActivity.imagesPage = sizesIntegerImages.get(position);
+                    StaticValues.imagesPage = sizesIntegerImages.get(position);
                     editor.putInt("images_per_page", sizesIntegerImages.get(position));
                     GalleryFragment.currentPage = 0;
                     editor.putInt("current_page", 0);
@@ -219,6 +244,7 @@ public class SettingsFragment extends Fragment {
         langs.add("de");
         langs.add("fr");
         langs.add("pt");//Need to change this for the Brazilian Region. Works for now as it's the only Portuguse
+        langs.add("ca");
 
         List<String> languages = new ArrayList<>();
         languages.add("English (default)");
@@ -226,58 +252,117 @@ public class SettingsFragment extends Fragment {
         languages.add("Deutsch");
         languages.add("Français");
         languages.add("Português Brasileiro");
-
+        languages.add("Català");
 
         ArrayAdapter<String> adapterLanguage = new ArrayAdapter<>(getContext(),
                 android.R.layout.simple_spinner_item, languages);
         adapterImages.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
         spinnerLanguage.setAdapter(adapterLanguage);
-        spinnerLanguage.setSelection(langs.indexOf(MainActivity.languageCode));
+        spinnerLanguage.setSelection(langs.indexOf(StaticValues.languageCode));
         spinnerLanguage.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
 
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (userSelect) {
                     // I set the export size on the Main activity int as the selected one
-                    MainActivity.languageCode = langs.get(position);
-                    ChangeLanguage(langs.get(position));
+                    StaticValues.languageCode = langs.get(position);
+                    changeLanguage(langs.get(position));
                 } else {
                     userSelect = true; // Because the spinner executes an item selection on startup
                 }
             }
+
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
 
-        cbRotation.setChecked(MainActivity.showRotationButton);
+        List<String> locales = new ArrayList<>();
+        locales.add("yyyy-MM-dd");
+        locales.add("yyyy-dd-MM");
+
+        List<String> localeSpinner = new ArrayList<>();
+        localeSpinner.add("D-M-Y  Ej: 27-04-2024");
+        localeSpinner.add("M-D-Y  Ej: 04-27-2024");
+
+        ArrayAdapter<String> adapterLocale = new ArrayAdapter<>(getContext(),
+                android.R.layout.simple_spinner_item, localeSpinner);
+        adapterImages.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        spinnerLocale.setAdapter(adapterLocale);
+        spinnerLocale.setSelection(locales.indexOf(StaticValues.dateLocale));
+        spinnerLocale.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (userSelectLocale) {
+                    // I set the export size on the Main activity int as the selected one
+                    StaticValues.dateLocale = locales.get(position);
+                    editor.putString("date_locale", locales.get(position));
+                    editor.apply();
+                } else {
+                    userSelectLocale = true; // Because the spinner executes an item selection on startup
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+
+        cbRotation.setChecked(StaticValues.showRotationButton);
         cbRotation.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
                     editor.putBoolean("rotation_button", true);
-                    MainActivity.showRotationButton = true;
+                    StaticValues.showRotationButton = true;
                 } else {
                     editor.putBoolean("rotation_button", false);
-                    MainActivity.showRotationButton = false;
+                    StaticValues.showRotationButton = false;
+                }
+                editor.apply();
+            }
+        });
+
+        cbAlwaysDefaultFrame.setChecked(StaticValues.alwaysDefaultFrame);
+        cbAlwaysDefaultFrame.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    editor.putBoolean("always_default_frame", true);
+                    StaticValues.alwaysDefaultFrame = true;
+                } else {
+                    editor.putBoolean("always_default_frame", false);
+                    StaticValues.alwaysDefaultFrame = false;
                 }
                 editor.apply();
             }
         });
 
 
+        btnExportDB.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                backupDatabase(getContext());
+            }
+        });
+        btnRestoreDB.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showDbBackups(getContext(), getActivity());
+            }
+        });
         return view;
     }
 
-    private void ChangeLanguage(String languageCode) {
-        Locale locale = new Locale(languageCode);
-        Locale.setDefault(locale);
-        Configuration configuration = new Configuration();
-        configuration.locale = locale;
-        Resources resources = getResources();
-        resources.updateConfiguration(configuration, resources.getDisplayMetrics());
+    private void changeLanguage(String languageCode) {
         editor.putString("language", languageCode);
-        editor.apply();
+        editor.commit();
+        restartApplication(getContext());
     }
+
+
 }

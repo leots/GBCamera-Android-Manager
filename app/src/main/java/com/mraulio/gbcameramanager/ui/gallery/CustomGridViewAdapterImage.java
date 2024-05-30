@@ -2,6 +2,8 @@ package com.mraulio.gbcameramanager.ui.gallery;
 
 import static android.view.View.GONE;
 
+import static com.mraulio.gbcameramanager.utils.StaticValues.FILTER_FAVOURITE;
+import static com.mraulio.gbcameramanager.utils.StaticValues.FILTER_SUPER_FAVOURITE;
 import static com.mraulio.gbcameramanager.utils.Utils.rotateBitmap;
 
 import android.app.Activity;
@@ -17,6 +19,8 @@ import android.view.ViewTreeObserver;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import androidx.core.content.ContextCompat;
 
 import com.mraulio.gbcameramanager.R;
 import com.mraulio.gbcameramanager.model.GbcImage;
@@ -64,7 +68,7 @@ public class CustomGridViewAdapterImage extends ArrayAdapter<GbcImage> {
             holder = (RecordHolder) row.getTag();
         }
         Bitmap image = images.get(position);
-        image= rotateBitmap(image,data.get(position));
+        image = rotateBitmap(image, data.get(position));
         String name = data.get(position).getName();
         String hash = data.get(position).getHashCode();
         List<String> hashToCheck = new ArrayList<>();
@@ -75,8 +79,15 @@ public class CustomGridViewAdapterImage extends ArrayAdapter<GbcImage> {
             row.setBackgroundColor(hashToCheck.contains(hash) ? context.getColor(R.color.teal_700) : Color.WHITE);
         }
 
-        Boolean fav = data.get(position).getTags().contains("__filter:favourite__");
-        holder.imageItem.setBackgroundColor(fav ? context.getColor(R.color.favorite) : context.getColor(R.color.imageview_bg));
+        Boolean fav = data.get(position).getTags().contains(FILTER_FAVOURITE);
+        Boolean superFav = data.get(position).getTags().contains(FILTER_SUPER_FAVOURITE);
+        if (superFav) {
+            holder.imageItem.setBackgroundColor(context.getColor(R.color.star_color));
+        } else if (fav) {
+            holder.imageItem.setBackgroundColor(context.getColor(R.color.favorite));
+        }else {
+            holder.imageItem.setBackgroundColor(context.getColor(R.color.imageview_bg));
+        }
         Boolean dup = false;
         if (checkDuplicate) {
             for (GbcImage gbcImage : Utils.gbcImagesList) {
