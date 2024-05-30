@@ -486,7 +486,7 @@ public class GBxCartCommands {
                             if (tryCount > 10) {
                                 break;
                             }
-                        } while (!hasBeenReadTimes(lengthKey, readLengths, 2));
+                        } while (!hasBeenReadTimes(lengthKey, readLengths, 3));
 
                         try {
                             outputStream.write(Arrays.copyOf(readLength, len));
